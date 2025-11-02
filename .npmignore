@@ -1,0 +1,22 @@
+# Test files
+test-basic.js
+example.js
+
+# Development files
+.gitignore
+.vscode/
+.idea/
+
+# Git
+.git/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Plan file
+*.plan.md
+
