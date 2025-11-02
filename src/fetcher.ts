@@ -1,4 +1,5 @@
-const axios = require('axios');
+import axios from 'axios';
+import type { RequestOptions } from './types.js';
 
 /**
  * Browser-like headers to bypass basic bot detection
@@ -18,11 +19,11 @@ const DEFAULT_HEADERS = {
 
 /**
  * Fetch HTML content from a URL with browser-like headers
- * @param {string} url - The URL to fetch
- * @param {object} options - Request options
- * @returns {Promise<string>} HTML content
+ * @param url - The URL to fetch
+ * @param options - Request options
+ * @returns HTML content
  */
-async function fetchHTML(url, options = {}) {
+export async function fetchHTML(url: string, options: RequestOptions = {}): Promise<string> {
   const { timeout = 10000, userAgent } = options;
 
   try {
@@ -31,7 +32,7 @@ async function fetchHTML(url, options = {}) {
       headers['User-Agent'] = userAgent;
     }
 
-    const response = await axios.get(url, {
+    const response = await axios.get<string>(url, {
       headers,
       timeout,
       maxRedirects: 5,
@@ -39,7 +40,7 @@ async function fetchHTML(url, options = {}) {
     });
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     if (error.response) {
       throw new Error(`HTTP ${error.response.status}: ${error.response.statusText} for ${url}`);
     } else if (error.code === 'ECONNABORTED') {
@@ -54,11 +55,11 @@ async function fetchHTML(url, options = {}) {
 
 /**
  * Fetch a resource (image, manifest, etc.) as a buffer
- * @param {string} url - The URL to fetch
- * @param {object} options - Request options
- * @returns {Promise<Buffer>} Resource buffer
+ * @param url - The URL to fetch
+ * @param options - Request options
+ * @returns Resource buffer
  */
-async function fetchResource(url, options = {}) {
+export async function fetchResource(url: string, options: RequestOptions = {}): Promise<Buffer> {
   const { timeout = 10000, userAgent } = options;
 
   try {
@@ -67,7 +68,7 @@ async function fetchResource(url, options = {}) {
       headers['User-Agent'] = userAgent;
     }
 
-    const response = await axios.get(url, {
+    const response = await axios.get<ArrayBuffer>(url, {
       headers,
       timeout,
       maxRedirects: 5,
@@ -76,7 +77,7 @@ async function fetchResource(url, options = {}) {
     });
 
     return Buffer.from(response.data);
-  } catch (error) {
+  } catch (error: any) {
     if (error.response) {
       throw new Error(`HTTP ${error.response.status}: ${error.response.statusText} for ${url}`);
     } else if (error.code === 'ECONNABORTED') {
@@ -86,9 +87,4 @@ async function fetchResource(url, options = {}) {
     }
   }
 }
-
-module.exports = {
-  fetchHTML,
-  fetchResource
-};
 

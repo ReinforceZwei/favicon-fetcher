@@ -1,19 +1,23 @@
-const { fetchResource } = require('./fetcher');
-const { resolveUrl } = require('./parser');
+import { fetchResource } from './fetcher.js';
+import { resolveUrl } from './parser.js';
+import type { Icon, RequestOptions, WebAppManifest } from './types.js';
 
 /**
  * Fetch and parse manifest.json
- * @param {string} manifestUrl - URL of the manifest file
- * @param {object} options - Request options
- * @returns {Promise<object|null>} Parsed manifest object or null
+ * @param manifestUrl - URL of the manifest file
+ * @param options - Request options
+ * @returns Parsed manifest object or null
  */
-async function fetchManifest(manifestUrl, options = {}) {
+export async function fetchManifest(
+  manifestUrl: string,
+  options: RequestOptions = {}
+): Promise<WebAppManifest | null> {
   try {
     const buffer = await fetchResource(manifestUrl, options);
     const manifestText = buffer.toString('utf-8');
-    const manifest = JSON.parse(manifestText);
+    const manifest = JSON.parse(manifestText) as WebAppManifest;
     return manifest;
-  } catch (error) {
+  } catch (error: any) {
     console.warn(`Failed to fetch manifest from ${manifestUrl}:`, error.message);
     return null;
   }
@@ -21,12 +25,12 @@ async function fetchManifest(manifestUrl, options = {}) {
 
 /**
  * Extract icons from manifest object
- * @param {object} manifest - Parsed manifest object
- * @param {string} baseUrl - Base URL for resolving relative URLs
- * @returns {Array} Array of icon objects
+ * @param manifest - Parsed manifest object
+ * @param baseUrl - Base URL for resolving relative URLs
+ * @returns Array of icon objects
  */
-function extractIconsFromManifest(manifest, baseUrl) {
-  const icons = [];
+export function extractIconsFromManifest(manifest: WebAppManifest, baseUrl: string): Icon[] {
+  const icons: Icon[] = [];
 
   try {
     if (!manifest || !manifest.icons || !Array.isArray(manifest.icons)) {
@@ -43,15 +47,10 @@ function extractIconsFromManifest(manifest, baseUrl) {
         });
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.warn('Failed to extract icons from manifest:', error.message);
   }
 
   return icons;
 }
-
-module.exports = {
-  fetchManifest,
-  extractIconsFromManifest
-};
 

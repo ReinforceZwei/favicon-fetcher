@@ -1,17 +1,17 @@
-const cheerio = require('cheerio');
-const { URL } = require('url');
+import * as cheerio from 'cheerio';
+import type { Icon } from './types.js';
 
 /**
  * Parse the page title from HTML
- * @param {string} html - HTML content
- * @returns {string} Page title
+ * @param html - HTML content
+ * @returns Page title
  */
-function parseTitle(html) {
+export function parseTitle(html: string): string {
   try {
     const $ = cheerio.load(html);
     const title = $('title').first().text().trim();
     return title || '';
-  } catch (error) {
+  } catch (error: any) {
     console.warn('Failed to parse title:', error.message);
     return '';
   }
@@ -19,14 +19,14 @@ function parseTitle(html) {
 
 /**
  * Convert a relative URL to absolute URL
- * @param {string} relativeUrl - Relative or absolute URL
- * @param {string} baseUrl - Base URL for resolution
- * @returns {string} Absolute URL
+ * @param relativeUrl - Relative or absolute URL
+ * @param baseUrl - Base URL for resolution
+ * @returns Absolute URL
  */
-function resolveUrl(relativeUrl, baseUrl) {
+export function resolveUrl(relativeUrl: string, baseUrl: string): string {
   try {
     return new URL(relativeUrl, baseUrl).href;
-  } catch (error) {
+  } catch (error: any) {
     console.warn(`Failed to resolve URL ${relativeUrl}:`, error.message);
     return relativeUrl;
   }
@@ -34,12 +34,12 @@ function resolveUrl(relativeUrl, baseUrl) {
 
 /**
  * Parse icon links from HTML
- * @param {string} html - HTML content
- * @param {string} baseUrl - Base URL for resolving relative URLs
- * @returns {Array} Array of icon objects
+ * @param html - HTML content
+ * @param baseUrl - Base URL for resolving relative URLs
+ * @returns Array of icon objects
  */
-function parseIconLinks(html, baseUrl) {
-  const icons = [];
+export function parseIconLinks(html: string, baseUrl: string): Icon[] {
+  const icons: Icon[] = [];
 
   try {
     const $ = cheerio.load(html);
@@ -54,7 +54,7 @@ function parseIconLinks(html, baseUrl) {
     ];
 
     // Search for link tags with icon rel attributes
-    $('link').each((i, elem) => {
+    $('link').each((_i, elem) => {
       const $elem = $(elem);
       const rel = $elem.attr('rel');
       const href = $elem.attr('href');
@@ -86,7 +86,7 @@ function parseIconLinks(html, baseUrl) {
         source: 'html'
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.warn('Failed to parse icon links:', error.message);
   }
 
@@ -95,11 +95,11 @@ function parseIconLinks(html, baseUrl) {
 
 /**
  * Get manifest URL from HTML
- * @param {string} html - HTML content
- * @param {string} baseUrl - Base URL for resolving relative URLs
- * @returns {string|null} Manifest URL or null if not found
+ * @param html - HTML content
+ * @param baseUrl - Base URL for resolving relative URLs
+ * @returns Manifest URL or null if not found
  */
-function getManifestUrl(html, baseUrl) {
+export function getManifestUrl(html: string, baseUrl: string): string | null {
   try {
     const $ = cheerio.load(html);
     const manifestLink = $('link[rel="manifest"]').attr('href');
@@ -107,17 +107,10 @@ function getManifestUrl(html, baseUrl) {
     if (manifestLink) {
       return resolveUrl(manifestLink, baseUrl);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.warn('Failed to get manifest URL:', error.message);
   }
 
   return null;
 }
-
-module.exports = {
-  parseTitle,
-  parseIconLinks,
-  getManifestUrl,
-  resolveUrl
-};
 

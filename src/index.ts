@@ -1,15 +1,15 @@
-const { URL } = require('url');
-const { fetchHTML } = require('./fetcher');
-const { parseTitle, parseIconLinks, getManifestUrl } = require('./parser');
-const { fetchManifest, extractIconsFromManifest } = require('./manifest');
-const { addMetadataToIcons } = require('./metadata');
+import { fetchHTML } from './fetcher.js';
+import { parseTitle, parseIconLinks, getManifestUrl } from './parser.js';
+import { fetchManifest, extractIconsFromManifest } from './manifest.js';
+import { addMetadataToIcons } from './metadata.js';
+import type { FetchOptions, FetchResult, Icon } from './types.js';
 
 /**
  * Validate and normalize URL
- * @param {string} url - URL to validate
- * @returns {string} Normalized URL
+ * @param url - URL to validate
+ * @returns Normalized URL
  */
-function validateUrl(url) {
+function validateUrl(url: string): string {
   try {
     const parsedUrl = new URL(url);
     
@@ -19,17 +19,17 @@ function validateUrl(url) {
     }
     
     return parsedUrl.href;
-  } catch (error) {
+  } catch (error: any) {
     throw new Error(`Invalid URL: ${url}`);
   }
 }
 
 /**
  * Get default favicon URL
- * @param {string} baseUrl - Base URL
- * @returns {string} Default favicon URL
+ * @param baseUrl - Base URL
+ * @returns Default favicon URL
  */
-function getDefaultFaviconUrl(baseUrl) {
+function getDefaultFaviconUrl(baseUrl: string): string | null {
   try {
     const parsedUrl = new URL(baseUrl);
     return `${parsedUrl.protocol}//${parsedUrl.host}/favicon.ico`;
@@ -40,14 +40,11 @@ function getDefaultFaviconUrl(baseUrl) {
 
 /**
  * Fetch favicon and title from a URL
- * @param {string} url - The URL to fetch favicon from
- * @param {object} options - Options object
- * @param {boolean} options.includeMetadata - Include image metadata (default: false)
- * @param {number} options.timeout - Request timeout in ms (default: 10000)
- * @param {string} options.userAgent - Custom user agent string
- * @returns {Promise<object>} Result object with url, title, and icons
+ * @param url - The URL to fetch favicon from
+ * @param options - Options object
+ * @returns Result object with url, title, and icons
  */
-async function fetchFavicon(url, options = {}) {
+export async function fetchFavicon(url: string, options: FetchOptions = {}): Promise<FetchResult> {
   // Validate options
   const {
     includeMetadata = false,
@@ -75,7 +72,7 @@ async function fetchFavicon(url, options = {}) {
 
     // Step 4: Check for manifest
     const manifestUrl = getManifestUrl(html, normalizedUrl);
-    let manifestIcons = [];
+    let manifestIcons: Icon[] = [];
 
     if (manifestUrl) {
       // Step 5: Fetch and parse manifest
@@ -87,7 +84,7 @@ async function fetchFavicon(url, options = {}) {
     }
 
     // Step 6: Merge icons (HTML icons take priority)
-    let icons = [...htmlIcons, ...manifestIcons];
+    let icons: Icon[] = [...htmlIcons, ...manifestIcons];
 
     // Step 7: If no icons found, try default favicon.ico
     if (icons.length === 0) {
@@ -115,13 +112,20 @@ async function fetchFavicon(url, options = {}) {
       icons
     };
 
-  } catch (error) {
+  } catch (error: any) {
     // Re-throw with more context
     throw new Error(`Failed to fetch favicon for ${url}: ${error.message}`);
   }
 }
 
-module.exports = {
-  fetchFavicon
-};
+// Export types for TypeScript consumers
+export type {
+  Icon,
+  ImageMetadata,
+  FetchOptions,
+  FetchResult,
+  RequestOptions,
+  ManifestIcon,
+  WebAppManifest
+} from './types.js';
 
