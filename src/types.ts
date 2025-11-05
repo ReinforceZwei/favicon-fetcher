@@ -27,7 +27,7 @@ export interface Icon {
   /** Source where the icon was found (e.g., 'html', 'manifest', 'default') */
   source: 'html' | 'manifest' | 'default';
   /** Optional metadata about the image (dimensions, format, size) */
-  metadata?: Omit<ImageMetadata, 'buffer'>;
+  metadata?: ImageMetadata;
 }
 
 /**
