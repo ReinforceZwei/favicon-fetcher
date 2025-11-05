@@ -4,7 +4,8 @@ A Node.js library to fetch website favicons and titles with optional image metad
 
 ## Features
 
-- 🌐 Fetch website favicons and page titles
+- 🌐 Fetch website favicons and page titles from multiple sources
+- 🏷️ **Extract titles with rich metadata** (HTML, OpenGraph, Twitter, manifest)
 - 🔍 Parse multiple icon sources (HTML, manifest.json, default favicon.ico)
 - 📊 Optional image metadata extraction (dimensions, format, file size)
 - 🤖 Browser-like headers to bypass basic bot detection
@@ -70,6 +71,46 @@ try {
 }
 ```
 
+### Extract Titles from Multiple Sources
+
+The library extracts titles from various sources and returns them with rich metadata:
+
+```javascript
+import { fetchFavicon } from '@reinforcezwei/favicon-fetcher';
+
+try {
+  const result = await fetchFavicon('https://github.com');
+  
+  // Use the primary title (for backward compatibility)
+  console.log('Primary Title:', result.title);
+  
+  // Access all titles with metadata
+  console.log('\nAll Titles:');
+  result.titles.forEach(title => {
+    console.log(`- ${title.value}`);
+    console.log(`  Source: ${title.source}`);
+    console.log(`  Property: ${title.property}`);
+  });
+  
+  // Example output:
+  // - GitHub · Change is constant
+  //   Source: html
+  //   Property: title
+  // - GitHub
+  //   Source: opengraph
+  //   Property: og:title
+  // - GitHub
+  //   Source: twitter
+  //   Property: twitter:title
+  // - GitHub
+  //   Source: manifest
+  //   Property: name
+  
+} catch (error) {
+  console.error('Error:', error.message);
+}
+```
+
 ### With Image Metadata
 
 ```javascript
@@ -126,6 +167,12 @@ const options: FetchOptions = {
 const result: FetchResult = await fetchFavicon('https://example.com', options);
 
 // TypeScript provides autocomplete and type checking
+result.titles.forEach(title => {
+  console.log(title.value);     // string
+  console.log(title.source);    // 'html' | 'opengraph' | 'twitter' | 'manifest'
+  console.log(title.property);  // string
+});
+
 result.icons.forEach(icon => {
   console.log(icon.url);      // string
   console.log(icon.type);     // string
@@ -160,7 +207,14 @@ Promise that resolves to an object with the following structure:
 ```javascript
 {
   url: string,              // Original/normalized URL
-  title: string,            // Page title
+  title: string,            // Page title (primary, for backward compatibility)
+  titles: [                 // Array of titles from all sources with metadata
+    {
+      value: string,        // Title text
+      source: string,       // Source type (html, opengraph, twitter, manifest)
+      property: string      // Property name (title, og:title, twitter:title, name, etc.)
+    }
+  ],
   icons: [
     {
       url: string,          // Absolute icon URL
@@ -202,6 +256,7 @@ import {
   type FetchResult,
   type FetchError,
   type Icon,
+  type Title,
   type ImageMetadata,
   type RequestOptions,
   type ManifestIcon,
@@ -228,7 +283,8 @@ Result returned by `fetchFavicon()`:
 ```typescript
 interface FetchResult {
   url: string;           // Normalized URL
-  title: string;         // Page title
+  title: string;         // Page title (primary, for backward compatibility)
+  titles: Title[];       // Array of titles from all sources with metadata
   icons: Icon[];         // Array of found icons
   errors?: FetchError[]; // Optional array of non-critical errors
 }
@@ -266,6 +322,18 @@ interface Icon {
 }
 ```
 
+### `Title`
+
+Title object structure with source metadata:
+
+```typescript
+interface Title {
+  value: string;                  // Title text
+  source: 'html' | 'opengraph' | 'twitter' | 'manifest';  // Source type
+  property: string;               // Property name (e.g., 'title', 'og:title', 'twitter:title', 'name', 'short_name')
+}
+```
+
 ### `ImageMetadata`
 
 Image metadata structure (when `includeMetadata: true`):
@@ -300,6 +368,47 @@ The library searches for icons in the following order:
 4. **OpenGraph Image** (fallback):
    - `<meta property="og:image">` if no other icons found
 
+## Title Detection
+
+The library extracts titles from multiple sources with rich metadata:
+
+### HTML Sources
+
+1. **HTML `<title>` tag**:
+   ```html
+   <title>Page Title</title>
+   ```
+   - Source: `html`
+   - Property: `title`
+
+2. **OpenGraph title**:
+   ```html
+   <meta property="og:title" content="OpenGraph Title">
+   ```
+   - Source: `opengraph`
+   - Property: `og:title`
+
+3. **Twitter title**:
+   ```html
+   <meta name="twitter:title" content="Twitter Title">
+   ```
+   - Source: `twitter`
+   - Property: `twitter:title`
+
+### Manifest Sources
+
+4. **Manifest name**:
+   ```json
+   {
+     "name": "App Name",
+     "short_name": "App"
+   }
+   ```
+   - Source: `manifest`
+   - Property: `name` or `short_name`
+
+All titles are returned in the `titles` array, while the primary HTML title is also available in the `title` field for backward compatibility.
+
 ## Browser-Like Headers
 
 The library uses the following headers to mimic browser behavior:
@@ -329,9 +438,10 @@ The library implements graceful error handling with partial results:
 
 **Non-Critical Errors (returns partial results):**
 - **Title Parsing**: Returns empty string if parsing fails
+- **Multiple Title Parsing**: Returns empty array if parsing from multiple sources fails
 - **Icon Link Parsing**: Returns empty array if parsing fails
 - **Manifest URL Parsing**: Skips manifest step if parsing fails
-- **Manifest Fetching**: Continues without manifest icons if fetch fails
+- **Manifest Fetching**: Continues without manifest icons/titles if fetch fails
 - **Metadata Extraction**: Returns icons without metadata if extraction fails
 
 ### Error Reporting
@@ -362,6 +472,7 @@ console.log('Icons found:', result.icons.length);
 The following step identifiers may appear in the `errors` array:
 
 - `parse_title` - Failed to parse page title
+- `parse_titles` - Failed to parse titles from multiple sources
 - `parse_icon_links` - Failed to parse icon links from HTML
 - `get_manifest_url` - Failed to extract manifest URL
 - `fetch_manifest` - Failed to fetch or parse manifest.json

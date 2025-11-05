@@ -31,6 +31,18 @@ export interface Icon {
 }
 
 /**
+ * Title object representing a page title from various sources
+ */
+export interface Title {
+  /** The title text value */
+  value: string;
+  /** Source where the title was found */
+  source: 'html' | 'opengraph' | 'twitter' | 'manifest';
+  /** Property name (e.g., 'title', 'og:title', 'twitter:title', 'name', 'short_name') */
+  property: string;
+}
+
+/**
  * Options for fetching favicons
  */
 export interface FetchOptions {
@@ -60,8 +72,10 @@ export interface FetchError {
 export interface FetchResult {
   /** The normalized URL that was fetched */
   url: string;
-  /** Page title extracted from HTML */
+  /** Page title extracted from HTML (for backward compatibility) */
   title: string;
+  /** Array of titles from various sources with metadata */
+  titles: Title[];
   /** Array of icons found */
   icons: Icon[];
   /** Optional array of errors that occurred during non-critical steps */

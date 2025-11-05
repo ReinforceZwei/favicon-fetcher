@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { Icon } from './types.js';
+import type { Icon, Title } from './types.js';
 
 /**
  * Parse the page title from HTML
@@ -15,6 +15,53 @@ export function parseTitle(html: string): string {
     console.warn('Failed to parse title:', error.message);
     return '';
   }
+}
+
+/**
+ * Parse all title sources from HTML
+ * @param html - HTML content
+ * @returns Array of title objects with metadata
+ */
+export function parseTitles(html: string): Title[] {
+  const titles: Title[] = [];
+
+  try {
+    const $ = cheerio.load(html);
+
+    // 1. HTML title tag
+    const htmlTitle = $('title').first().text().trim();
+    if (htmlTitle) {
+      titles.push({
+        value: htmlTitle,
+        source: 'html',
+        property: 'title'
+      });
+    }
+
+    // 2. OpenGraph title
+    const ogTitle = $('meta[property="og:title"]').attr('content');
+    if (ogTitle && ogTitle.trim()) {
+      titles.push({
+        value: ogTitle.trim(),
+        source: 'opengraph',
+        property: 'og:title'
+      });
+    }
+
+    // 3. Twitter title
+    const twitterTitle = $('meta[name="twitter:title"]').attr('content');
+    if (twitterTitle && twitterTitle.trim()) {
+      titles.push({
+        value: twitterTitle.trim(),
+        source: 'twitter',
+        property: 'twitter:title'
+      });
+    }
+  } catch (error: any) {
+    console.warn('Failed to parse titles:', error.message);
+  }
+
+  return titles;
 }
 
 /**

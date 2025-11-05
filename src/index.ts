@@ -1,8 +1,8 @@
 import { fetchHTML } from './fetcher.js';
-import { parseTitle, parseIconLinks, getManifestUrl } from './parser.js';
-import { fetchManifest, extractIconsFromManifest } from './manifest.js';
+import { parseTitle, parseTitles, parseIconLinks, getManifestUrl } from './parser.js';
+import { fetchManifest, extractIconsFromManifest, extractTitlesFromManifest } from './manifest.js';
 import { addMetadataToIcons } from './metadata.js';
-import type { FetchOptions, FetchResult, FetchError, Icon } from './types.js';
+import type { FetchOptions, FetchResult, FetchError, Icon, Title } from './types.js';
 
 /**
  * Validate and normalize URL
@@ -78,6 +78,17 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
       });
     }
 
+    // Step 2b: Parse all titles from HTML (non-critical)
+    let htmlTitles: Title[] = [];
+    try {
+      htmlTitles = parseTitles(html);
+    } catch (error: any) {
+      errors.push({
+        step: 'parse_titles',
+        message: error.message
+      });
+    }
+
     // Step 3: Parse icon links from HTML (non-critical)
     let htmlIcons: Icon[] = [];
     try {
@@ -102,12 +113,14 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 
     // Step 5: Fetch and parse manifest (non-critical)
     let manifestIcons: Icon[] = [];
+    let manifestTitles: Title[] = [];
     if (manifestUrl) {
       try {
         const manifest = await fetchManifest(manifestUrl, requestOptions);
         
         if (manifest) {
           manifestIcons = extractIconsFromManifest(manifest, normalizedUrl);
+          manifestTitles = extractTitlesFromManifest(manifest);
         }
       } catch (error: any) {
         errors.push({
@@ -120,6 +133,9 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 
     // Step 6: Merge icons (HTML icons take priority)
     let icons: Icon[] = [...htmlIcons, ...manifestIcons];
+
+    // Step 6b: Merge titles (HTML titles take priority)
+    let titles: Title[] = [...htmlTitles, ...manifestTitles];
 
     // Step 7: If no icons found, try default favicon.ico
     if (icons.length === 0) {
@@ -151,6 +167,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
     const result: FetchResult = {
       url: normalizedUrl,
       title,
+      titles,
       icons
     };
 
@@ -169,6 +186,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 // Export types for TypeScript consumers
 export type {
   Icon,
+  Title,
   ImageMetadata,
   FetchOptions,
   FetchResult,
