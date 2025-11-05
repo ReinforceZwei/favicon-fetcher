@@ -45,7 +45,8 @@ export async function addMetadataToIcons(
   icons: Icon[],
   options: RequestOptions = {}
 ): Promise<Icon[]> {
-  const iconsWithMetadata = await Promise.all(
+  // Use allSettled to prevent one failure from stopping all metadata fetching
+  const results = await Promise.allSettled(
     icons.map(async (icon) => {
       const metadata = await getImageMetadata(icon.url, options);
       
@@ -59,6 +60,15 @@ export async function addMetadataToIcons(
       return icon;
     })
   );
+
+  // Extract fulfilled results, keep original icon if rejected
+  const iconsWithMetadata = results.map((result, index) => {
+    if (result.status === 'fulfilled') {
+      return result.value;
+    }
+    // If metadata fetch failed entirely, return original icon
+    return icons[index];
+  });
 
   return iconsWithMetadata;
 }

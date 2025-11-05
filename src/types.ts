@@ -43,6 +43,18 @@ export interface FetchOptions {
 }
 
 /**
+ * Error information for failed operations
+ */
+export interface FetchError {
+  /** Step where the error occurred */
+  step: string;
+  /** Error message */
+  message: string;
+  /** Optional URL that caused the error */
+  url?: string;
+}
+
+/**
  * Result returned by fetchFavicon
  */
 export interface FetchResult {
@@ -52,6 +64,8 @@ export interface FetchResult {
   title: string;
   /** Array of icons found */
   icons: Icon[];
+  /** Optional array of errors that occurred during non-critical steps */
+  errors?: FetchError[];
 }
 
 /**

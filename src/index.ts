@@ -2,7 +2,7 @@ import { fetchHTML } from './fetcher.js';
 import { parseTitle, parseIconLinks, getManifestUrl } from './parser.js';
 import { fetchManifest, extractIconsFromManifest } from './manifest.js';
 import { addMetadataToIcons } from './metadata.js';
-import type { FetchOptions, FetchResult, Icon } from './types.js';
+import type { FetchOptions, FetchResult, FetchError, Icon } from './types.js';
 
 /**
  * Validate and normalize URL
@@ -60,26 +60,61 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
     userAgent
   };
 
+  // Track errors from non-critical steps
+  const errors: FetchError[] = [];
+
   try {
-    // Step 1: Fetch HTML
+    // Step 1: Fetch HTML (CRITICAL - must succeed)
     const html = await fetchHTML(normalizedUrl, requestOptions);
 
-    // Step 2: Parse title
-    const title = parseTitle(html);
+    // Step 2: Parse title (non-critical)
+    let title = '';
+    try {
+      title = parseTitle(html);
+    } catch (error: any) {
+      errors.push({
+        step: 'parse_title',
+        message: error.message
+      });
+    }
 
-    // Step 3: Parse icon links from HTML
-    const htmlIcons = parseIconLinks(html, normalizedUrl);
+    // Step 3: Parse icon links from HTML (non-critical)
+    let htmlIcons: Icon[] = [];
+    try {
+      htmlIcons = parseIconLinks(html, normalizedUrl);
+    } catch (error: any) {
+      errors.push({
+        step: 'parse_icon_links',
+        message: error.message
+      });
+    }
 
-    // Step 4: Check for manifest
-    const manifestUrl = getManifestUrl(html, normalizedUrl);
+    // Step 4: Check for manifest (non-critical)
+    let manifestUrl: string | null = null;
+    try {
+      manifestUrl = getManifestUrl(html, normalizedUrl);
+    } catch (error: any) {
+      errors.push({
+        step: 'get_manifest_url',
+        message: error.message
+      });
+    }
+
+    // Step 5: Fetch and parse manifest (non-critical)
     let manifestIcons: Icon[] = [];
-
     if (manifestUrl) {
-      // Step 5: Fetch and parse manifest
-      const manifest = await fetchManifest(manifestUrl, requestOptions);
-      
-      if (manifest) {
-        manifestIcons = extractIconsFromManifest(manifest, normalizedUrl);
+      try {
+        const manifest = await fetchManifest(manifestUrl, requestOptions);
+        
+        if (manifest) {
+          manifestIcons = extractIconsFromManifest(manifest, normalizedUrl);
+        }
+      } catch (error: any) {
+        errors.push({
+          step: 'fetch_manifest',
+          message: error.message,
+          url: manifestUrl
+        });
       }
     }
 
@@ -100,20 +135,33 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
       }
     }
 
-    // Step 8: Optionally add metadata
+    // Step 8: Optionally add metadata (non-critical)
     if (includeMetadata && icons.length > 0) {
-      icons = await addMetadataToIcons(icons, requestOptions);
+      try {
+        icons = await addMetadataToIcons(icons, requestOptions);
+      } catch (error: any) {
+        errors.push({
+          step: 'add_metadata',
+          message: error.message
+        });
+      }
     }
 
-    // Step 9: Return result
-    return {
+    // Step 9: Return result with errors if any occurred
+    const result: FetchResult = {
       url: normalizedUrl,
       title,
       icons
     };
 
+    if (errors.length > 0) {
+      result.errors = errors;
+    }
+
+    return result;
+
   } catch (error: any) {
-    // Re-throw with more context
+    // Re-throw with more context (only for critical HTML fetch failure)
     throw new Error(`Failed to fetch favicon for ${url}: ${error.message}`);
   }
 }
@@ -124,6 +172,7 @@ export type {
   ImageMetadata,
   FetchOptions,
   FetchResult,
+  FetchError,
   RequestOptions,
   ManifestIcon,
   WebAppManifest

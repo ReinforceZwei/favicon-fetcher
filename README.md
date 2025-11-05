@@ -12,6 +12,7 @@ A Node.js library to fetch website favicons and titles with optional image metad
 - 🔗 Automatic URL resolution for relative paths
 - 📘 **Full TypeScript support** with comprehensive type definitions
 - 🎯 ES Modules with modern JavaScript syntax
+- 🛡️ **Graceful error handling** with partial results and detailed error reporting
 
 ## Installation
 
@@ -173,19 +174,40 @@ Promise that resolves to an object with the following structure:
         size: number        // File size in bytes
       }
     }
+  ],
+  errors: [                 // Optional array of non-critical errors
+    {
+      step: string,         // Step where error occurred
+      message: string,      // Error message
+      url: string           // Optional URL that caused the error
+    }
   ]
 }
 ```
 
 #### Throws
 
-- Error if URL is invalid
-- Error if network request fails
-- Error for other critical failures
+- Error if URL is invalid or malformed
+- Error if HTML fetch fails (network error, timeout, DNS failure, HTTP 4xx/5xx)
+- **Note**: Non-critical errors (title parsing, manifest fetching, metadata extraction) do not throw. Instead, they return partial results with an `errors` array.
 
 ## TypeScript Types
 
 The library exports the following TypeScript types for your convenience:
+
+```typescript
+import { 
+  fetchFavicon,
+  type FetchOptions,
+  type FetchResult,
+  type FetchError,
+  type Icon,
+  type ImageMetadata,
+  type RequestOptions,
+  type ManifestIcon,
+  type WebAppManifest
+} from '@reinforcezwei/favicon-fetcher';
+```
 
 ### `FetchOptions`
 
@@ -205,9 +227,22 @@ Result returned by `fetchFavicon()`:
 
 ```typescript
 interface FetchResult {
-  url: string;      // Normalized URL
-  title: string;    // Page title
-  icons: Icon[];    // Array of found icons
+  url: string;           // Normalized URL
+  title: string;         // Page title
+  icons: Icon[];         // Array of found icons
+  errors?: FetchError[]; // Optional array of non-critical errors
+}
+```
+
+### `FetchError`
+
+Error information for non-critical failures:
+
+```typescript
+interface FetchError {
+  step: string;    // Step where error occurred (e.g., 'parse_title', 'fetch_manifest')
+  message: string; // Error message
+  url?: string;    // Optional URL that caused the error
 }
 ```
 
@@ -285,11 +320,91 @@ The library uses the following headers to mimic browser behavior:
 
 ## Error Handling
 
-The library implements basic error handling:
+The library implements graceful error handling with partial results:
 
-- Network errors are caught and re-thrown with descriptive messages
-- Non-critical errors (e.g., manifest fetch failure) are logged as warnings
-- Partial results are returned when possible (e.g., HTML icons even if manifest fails)
+### Critical vs Non-Critical Errors
+
+**Critical Error (throws exception):**
+- **HTML Fetch Failure**: If the initial HTML cannot be fetched, the function throws an error. This is the only critical step because all other operations depend on it.
+
+**Non-Critical Errors (returns partial results):**
+- **Title Parsing**: Returns empty string if parsing fails
+- **Icon Link Parsing**: Returns empty array if parsing fails
+- **Manifest URL Parsing**: Skips manifest step if parsing fails
+- **Manifest Fetching**: Continues without manifest icons if fetch fails
+- **Metadata Extraction**: Returns icons without metadata if extraction fails
+
+### Error Reporting
+
+Non-critical errors are collected and returned in an optional `errors` array:
+
+```javascript
+const result = await fetchFavicon('https://example.com', { includeMetadata: true });
+
+// Check if any non-critical errors occurred
+if (result.errors && result.errors.length > 0) {
+  console.log('Some operations failed:');
+  result.errors.forEach(error => {
+    console.log(`- ${error.step}: ${error.message}`);
+    if (error.url) {
+      console.log(`  URL: ${error.url}`);
+    }
+  });
+}
+
+// Still able to access partial results
+console.log('Title:', result.title);
+console.log('Icons found:', result.icons.length);
+```
+
+### Error Steps
+
+The following step identifiers may appear in the `errors` array:
+
+- `parse_title` - Failed to parse page title
+- `parse_icon_links` - Failed to parse icon links from HTML
+- `get_manifest_url` - Failed to extract manifest URL
+- `fetch_manifest` - Failed to fetch or parse manifest.json
+- `add_metadata` - Failed to add metadata to icons
+
+### Example: Handling Errors
+
+```javascript
+import { fetchFavicon } from '@reinforcezwei/favicon-fetcher';
+
+try {
+  const result = await fetchFavicon('https://example.com');
+  
+  // Check for partial failures
+  if (result.errors) {
+    console.warn(`⚠️ ${result.errors.length} non-critical error(s) occurred`);
+    result.errors.forEach(err => {
+      console.warn(`  - ${err.step}: ${err.message}`);
+    });
+  }
+  
+  // Use partial results
+  console.log(`✓ Successfully fetched ${result.icons.length} icon(s)`);
+  console.log(`✓ Title: ${result.title || '(no title)'}`);
+  
+} catch (error) {
+  // Only critical HTML fetch failures throw
+  console.error('✗ Critical error - could not fetch page:', error.message);
+}
+```
+
+### Resilient Metadata Fetching
+
+When `includeMetadata: true` is set, the library uses `Promise.allSettled` to fetch metadata for all icons. If some icons fail, others will still have their metadata extracted:
+
+```javascript
+const result = await fetchFavicon('https://example.com', { includeMetadata: true });
+
+const successCount = result.icons.filter(icon => icon.metadata).length;
+const failCount = result.icons.length - successCount;
+
+console.log(`Metadata: ${successCount} successful, ${failCount} failed`);
+```
 
 ## Architecture
 
