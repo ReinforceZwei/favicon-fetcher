@@ -43,6 +43,18 @@ export interface Title {
 }
 
 /**
+ * Description object representing a page description from various sources
+ */
+export interface Description {
+  /** The description text value */
+  value: string;
+  /** Source where the description was found */
+  source: 'html' | 'opengraph' | 'twitter' | 'manifest';
+  /** Property name (e.g., 'description', 'og:description', 'twitter:description') */
+  property: string;
+}
+
+/**
  * Options for fetching favicons
  */
 export interface FetchOptions {
@@ -76,6 +88,8 @@ export interface FetchResult {
   title: string;
   /** Array of titles from various sources with metadata */
   titles: Title[];
+  /** Array of descriptions from various sources with metadata */
+  descriptions: Description[];
   /** Array of icons found */
   icons: Icon[];
   /** Optional array of errors that occurred during non-critical steps */

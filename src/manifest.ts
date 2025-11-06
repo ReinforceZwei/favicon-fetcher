@@ -1,6 +1,6 @@
 import { fetchResource } from './fetcher.js';
 import { resolveUrl } from './parser.js';
-import type { Icon, Title, RequestOptions, WebAppManifest } from './types.js';
+import type { Icon, Title, Description, RequestOptions, WebAppManifest } from './types.js';
 
 /**
  * Fetch and parse manifest.json
@@ -89,5 +89,33 @@ export function extractTitlesFromManifest(manifest: WebAppManifest): Title[] {
   }
 
   return titles;
+}
+
+/**
+ * Extract descriptions from manifest object
+ * @param manifest - Parsed manifest object
+ * @returns Array of description objects
+ */
+export function extractDescriptionsFromManifest(manifest: WebAppManifest): Description[] {
+  const descriptions: Description[] = [];
+
+  try {
+    if (!manifest) {
+      return descriptions;
+    }
+
+    // Extract 'description' field
+    if (manifest.description && typeof manifest.description === 'string' && manifest.description.trim()) {
+      descriptions.push({
+        value: manifest.description.trim(),
+        source: 'manifest',
+        property: 'description'
+      });
+    }
+  } catch (error: any) {
+    console.warn('Failed to extract descriptions from manifest:', error.message);
+  }
+
+  return descriptions;
 }
 

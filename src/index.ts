@@ -1,8 +1,8 @@
 import { fetchHTML } from './fetcher.js';
-import { parseTitle, parseTitles, parseIconLinks, getManifestUrl } from './parser.js';
-import { fetchManifest, extractIconsFromManifest, extractTitlesFromManifest } from './manifest.js';
+import { parseTitle, parseTitles, parseDescriptions, parseIconLinks, getManifestUrl } from './parser.js';
+import { fetchManifest, extractIconsFromManifest, extractTitlesFromManifest, extractDescriptionsFromManifest } from './manifest.js';
 import { addMetadataToIcons } from './metadata.js';
-import type { FetchOptions, FetchResult, FetchError, Icon, Title } from './types.js';
+import type { FetchOptions, FetchResult, FetchError, Icon, Title, Description } from './types.js';
 
 /**
  * Validate and normalize URL
@@ -89,6 +89,17 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
       });
     }
 
+    // Step 2c: Parse all descriptions from HTML (non-critical)
+    let htmlDescriptions: Description[] = [];
+    try {
+      htmlDescriptions = parseDescriptions(html);
+    } catch (error: any) {
+      errors.push({
+        step: 'parse_descriptions',
+        message: error.message
+      });
+    }
+
     // Step 3: Parse icon links from HTML (non-critical)
     let htmlIcons: Icon[] = [];
     try {
@@ -114,6 +125,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
     // Step 5: Fetch and parse manifest (non-critical)
     let manifestIcons: Icon[] = [];
     let manifestTitles: Title[] = [];
+    let manifestDescriptions: Description[] = [];
     if (manifestUrl) {
       try {
         const manifest = await fetchManifest(manifestUrl, requestOptions);
@@ -121,6 +133,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
         if (manifest) {
           manifestIcons = extractIconsFromManifest(manifest, normalizedUrl);
           manifestTitles = extractTitlesFromManifest(manifest);
+          manifestDescriptions = extractDescriptionsFromManifest(manifest);
         }
       } catch (error: any) {
         errors.push({
@@ -136,6 +149,9 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 
     // Step 6b: Merge titles (HTML titles take priority)
     let titles: Title[] = [...htmlTitles, ...manifestTitles];
+
+    // Step 6c: Merge descriptions (HTML descriptions take priority)
+    let descriptions: Description[] = [...htmlDescriptions, ...manifestDescriptions];
 
     // Step 7: If no icons found, try default favicon.ico
     if (icons.length === 0) {
@@ -168,6 +184,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
       url: normalizedUrl,
       title,
       titles,
+      descriptions,
       icons
     };
 
@@ -187,6 +204,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 export type {
   Icon,
   Title,
+  Description,
   ImageMetadata,
   FetchOptions,
   FetchResult,

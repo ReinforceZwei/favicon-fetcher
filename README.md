@@ -6,6 +6,7 @@ A Node.js library to fetch website favicons and titles with optional image metad
 
 - 🌐 Fetch website favicons and page titles from multiple sources
 - 🏷️ **Extract titles with rich metadata** (HTML, OpenGraph, Twitter, manifest)
+- 📝 **Extract descriptions with rich metadata** (HTML, OpenGraph, Twitter, manifest)
 - 🔍 Parse multiple icon sources (HTML, manifest.json, default favicon.ico)
 - 📊 Optional image metadata extraction (dimensions, format, file size)
 - 🤖 Browser-like headers to bypass basic bot detection
@@ -111,6 +112,43 @@ try {
 }
 ```
 
+### Extract Descriptions from Multiple Sources
+
+The library extracts descriptions from various sources with rich metadata:
+
+```javascript
+import { fetchFavicon } from '@reinforcezwei/favicon-fetcher';
+
+try {
+  const result = await fetchFavicon('https://github.com');
+  
+  // Access all descriptions with metadata
+  console.log('All Descriptions:');
+  result.descriptions.forEach(description => {
+    console.log(`- ${description.value}`);
+    console.log(`  Source: ${description.source}`);
+    console.log(`  Property: ${description.property}`);
+  });
+  
+  // Example output:
+  // - GitHub is where people build software...
+  //   Source: html
+  //   Property: description
+  // - GitHub is where over 100 million developers...
+  //   Source: opengraph
+  //   Property: og:description
+  // - GitHub is where over 100 million developers...
+  //   Source: twitter
+  //   Property: twitter:description
+  // - Collaborate on code with GitHub
+  //   Source: manifest
+  //   Property: description
+  
+} catch (error) {
+  console.error('Error:', error.message);
+}
+```
+
 ### With Image Metadata
 
 ```javascript
@@ -173,6 +211,12 @@ result.titles.forEach(title => {
   console.log(title.property);  // string
 });
 
+result.descriptions.forEach(description => {
+  console.log(description.value);     // string
+  console.log(description.source);    // 'html' | 'opengraph' | 'twitter' | 'manifest'
+  console.log(description.property);  // string
+});
+
 result.icons.forEach(icon => {
   console.log(icon.url);      // string
   console.log(icon.type);     // string
@@ -213,6 +257,13 @@ Promise that resolves to an object with the following structure:
       value: string,        // Title text
       source: string,       // Source type (html, opengraph, twitter, manifest)
       property: string      // Property name (title, og:title, twitter:title, name, etc.)
+    }
+  ],
+  descriptions: [           // Array of descriptions from all sources with metadata
+    {
+      value: string,        // Description text
+      source: string,       // Source type (html, opengraph, twitter, manifest)
+      property: string      // Property name (description, og:description, twitter:description)
     }
   ],
   icons: [
@@ -257,6 +308,7 @@ import {
   type FetchError,
   type Icon,
   type Title,
+  type Description,
   type ImageMetadata,
   type RequestOptions,
   type ManifestIcon,
@@ -282,11 +334,12 @@ Result returned by `fetchFavicon()`:
 
 ```typescript
 interface FetchResult {
-  url: string;           // Normalized URL
-  title: string;         // Page title (primary, for backward compatibility)
-  titles: Title[];       // Array of titles from all sources with metadata
-  icons: Icon[];         // Array of found icons
-  errors?: FetchError[]; // Optional array of non-critical errors
+  url: string;              // Normalized URL
+  title: string;            // Page title (primary, for backward compatibility)
+  titles: Title[];          // Array of titles from all sources with metadata
+  descriptions: Description[]; // Array of descriptions from all sources with metadata
+  icons: Icon[];            // Array of found icons
+  errors?: FetchError[];    // Optional array of non-critical errors
 }
 ```
 
@@ -331,6 +384,18 @@ interface Title {
   value: string;                  // Title text
   source: 'html' | 'opengraph' | 'twitter' | 'manifest';  // Source type
   property: string;               // Property name (e.g., 'title', 'og:title', 'twitter:title', 'name', 'short_name')
+}
+```
+
+### `Description`
+
+Description object structure with source metadata:
+
+```typescript
+interface Description {
+  value: string;                  // Description text
+  source: 'html' | 'opengraph' | 'twitter' | 'manifest';  // Source type
+  property: string;               // Property name (e.g., 'description', 'og:description', 'twitter:description')
 }
 ```
 
@@ -409,6 +474,46 @@ The library extracts titles from multiple sources with rich metadata:
 
 All titles are returned in the `titles` array, while the primary HTML title is also available in the `title` field for backward compatibility.
 
+## Description Detection
+
+The library extracts descriptions from multiple sources with rich metadata:
+
+### HTML Sources
+
+1. **HTML meta description**:
+   ```html
+   <meta name="description" content="Page description">
+   ```
+   - Source: `html`
+   - Property: `description`
+
+2. **OpenGraph description**:
+   ```html
+   <meta property="og:description" content="OpenGraph description">
+   ```
+   - Source: `opengraph`
+   - Property: `og:description`
+
+3. **Twitter description**:
+   ```html
+   <meta name="twitter:description" content="Twitter description">
+   ```
+   - Source: `twitter`
+   - Property: `twitter:description`
+
+### Manifest Sources
+
+4. **Manifest description**:
+   ```json
+   {
+     "description": "App description"
+   }
+   ```
+   - Source: `manifest`
+   - Property: `description`
+
+All descriptions are returned in the `descriptions` array with their respective source and property metadata.
+
 ## Browser-Like Headers
 
 The library uses the following headers to mimic browser behavior:
@@ -439,9 +544,10 @@ The library implements graceful error handling with partial results:
 **Non-Critical Errors (returns partial results):**
 - **Title Parsing**: Returns empty string if parsing fails
 - **Multiple Title Parsing**: Returns empty array if parsing from multiple sources fails
+- **Description Parsing**: Returns empty array if parsing from multiple sources fails
 - **Icon Link Parsing**: Returns empty array if parsing fails
 - **Manifest URL Parsing**: Skips manifest step if parsing fails
-- **Manifest Fetching**: Continues without manifest icons/titles if fetch fails
+- **Manifest Fetching**: Continues without manifest icons/titles/descriptions if fetch fails
 - **Metadata Extraction**: Returns icons without metadata if extraction fails
 
 ### Error Reporting
@@ -473,6 +579,7 @@ The following step identifiers may appear in the `errors` array:
 
 - `parse_title` - Failed to parse page title
 - `parse_titles` - Failed to parse titles from multiple sources
+- `parse_descriptions` - Failed to parse descriptions from multiple sources
 - `parse_icon_links` - Failed to parse icon links from HTML
 - `get_manifest_url` - Failed to extract manifest URL
 - `fetch_manifest` - Failed to fetch or parse manifest.json

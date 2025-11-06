@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { Icon, Title } from './types.js';
+import type { Icon, Title, Description } from './types.js';
 
 /**
  * Parse the page title from HTML
@@ -62,6 +62,53 @@ export function parseTitles(html: string): Title[] {
   }
 
   return titles;
+}
+
+/**
+ * Parse all description sources from HTML
+ * @param html - HTML content
+ * @returns Array of description objects with metadata
+ */
+export function parseDescriptions(html: string): Description[] {
+  const descriptions: Description[] = [];
+
+  try {
+    const $ = cheerio.load(html);
+
+    // 1. HTML meta description
+    const htmlDescription = $('meta[name="description"]').attr('content');
+    if (htmlDescription && htmlDescription.trim()) {
+      descriptions.push({
+        value: htmlDescription.trim(),
+        source: 'html',
+        property: 'description'
+      });
+    }
+
+    // 2. OpenGraph description
+    const ogDescription = $('meta[property="og:description"]').attr('content');
+    if (ogDescription && ogDescription.trim()) {
+      descriptions.push({
+        value: ogDescription.trim(),
+        source: 'opengraph',
+        property: 'og:description'
+      });
+    }
+
+    // 3. Twitter description
+    const twitterDescription = $('meta[name="twitter:description"]').attr('content');
+    if (twitterDescription && twitterDescription.trim()) {
+      descriptions.push({
+        value: twitterDescription.trim(),
+        source: 'twitter',
+        property: 'twitter:description'
+      });
+    }
+  } catch (error: any) {
+    console.warn('Failed to parse descriptions:', error.message);
+  }
+
+  return descriptions;
 }
 
 /**
