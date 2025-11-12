@@ -65,7 +65,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 
   try {
     // Step 1: Fetch HTML (CRITICAL - must succeed)
-    const html = await fetchHTML(normalizedUrl, requestOptions);
+    const { html, finalUrl } = await fetchHTML(normalizedUrl, requestOptions);
 
     // Step 2: Parse title (non-critical)
     let title = '';
@@ -103,7 +103,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
     // Step 3: Parse icon links from HTML (non-critical)
     let htmlIcons: Icon[] = [];
     try {
-      htmlIcons = parseIconLinks(html, normalizedUrl);
+      htmlIcons = parseIconLinks(html, finalUrl);
     } catch (error: any) {
       errors.push({
         step: 'parse_icon_links',
@@ -114,7 +114,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
     // Step 4: Check for manifest (non-critical)
     let manifestUrl: string | null = null;
     try {
-      manifestUrl = getManifestUrl(html, normalizedUrl);
+      manifestUrl = getManifestUrl(html, finalUrl);
     } catch (error: any) {
       errors.push({
         step: 'get_manifest_url',
@@ -131,7 +131,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
         const manifest = await fetchManifest(manifestUrl, requestOptions);
         
         if (manifest) {
-          manifestIcons = extractIconsFromManifest(manifest, normalizedUrl);
+          manifestIcons = extractIconsFromManifest(manifest, finalUrl);
           manifestTitles = extractTitlesFromManifest(manifest);
           manifestDescriptions = extractDescriptionsFromManifest(manifest);
         }
@@ -155,7 +155,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 
     // Step 7: If no icons found, try default favicon.ico
     if (icons.length === 0) {
-      const defaultFaviconUrl = getDefaultFaviconUrl(normalizedUrl);
+      const defaultFaviconUrl = getDefaultFaviconUrl(finalUrl);
       
       if (defaultFaviconUrl) {
         icons.push({
@@ -181,7 +181,7 @@ export async function fetchFavicon(url: string, options: FetchOptions = {}): Pro
 
     // Step 9: Return result with errors if any occurred
     const result: FetchResult = {
-      url: normalizedUrl,
+      url: finalUrl,
       title,
       titles,
       descriptions,

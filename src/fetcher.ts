@@ -21,9 +21,9 @@ const DEFAULT_HEADERS = {
  * Fetch HTML content from a URL with browser-like headers
  * @param url - The URL to fetch
  * @param options - Request options
- * @returns HTML content
+ * @returns Object containing HTML content and final URL after redirects
  */
-export async function fetchHTML(url: string, options: RequestOptions = {}): Promise<string> {
+export async function fetchHTML(url: string, options: RequestOptions = {}): Promise<{ html: string; finalUrl: string }> {
   const { timeout = 10000, userAgent } = options;
 
   try {
@@ -39,7 +39,10 @@ export async function fetchHTML(url: string, options: RequestOptions = {}): Prom
       validateStatus: (status) => status >= 200 && status < 400
     });
 
-    return response.data;
+    // Get the final URL after redirects
+    const finalUrl = response.request.res?.responseUrl || url;
+
+    return { html: response.data, finalUrl };
   } catch (error: any) {
     if (error.response) {
       throw new Error(`HTTP ${error.response.status}: ${error.response.statusText} for ${url}`);
